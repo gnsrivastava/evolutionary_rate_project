@@ -99,6 +99,21 @@ def _normalize_rate_absolute(values):
     out.loc[valid.index] = ((np.log10(clipped) - log_lo) / (log_hi - log_lo)).clip(0, 1)
     return out
 
+def _normalize_rate_batch(values):
+    s = pd.to_numeric(values, errors="coerce")
+    out = pd.Series(0.5, index=s.index, dtype=float)
+    valid = s[(s.notna()) & (s > 0)]
+    if valid.empty:
+        return out
+    clipped = valid.clip(lower=RATE_SCORE_MIN, upper=RATE_SCORE_MAX)
+    log_valid = np.log10(clipped)
+    lo, hi = log_valid.min(), log_valid.max()
+    if lo == hi:
+        out.loc[valid.index] = 0.5
+        return out
+    out.loc[valid.index] = ((log_valid - lo) / (hi - lo)).clip(0, 1)
+    return out
+
 def _normalize_amr_absolute(values):
     s = pd.to_numeric(values, errors="coerce")
     out = pd.Series(0.5, index=s.index, dtype=float)
@@ -108,7 +123,33 @@ def _normalize_amr_absolute(values):
     out.loc[valid.index] = (valid / AMR_GENES_SCORE_MAX).clip(0, 1)
     return out
 
-def compute_scores(items, gdata, adata, sdata, rate_db, strict_bvbrc=False):
+def _normalize_amr_batch(values):
+    s = pd.to_numeric(values, errors="coerce")
+    out = pd.Series(0.5, index=s.index, dtype=float)
+    valid = s.dropna()
+    if valid.empty:
+        return out
+    lo, hi = valid.min(), valid.max()
+    if lo == hi:
+        out.loc[valid.index] = 0.5
+        return out
+    out.loc[valid.index] = ((valid - lo) / (hi - lo)).clip(0, 1)
+    return out
+
+def _normalize_resistance_batch(values):
+    s = pd.to_numeric(values, errors="coerce")
+    out = pd.Series(0.5, index=s.index, dtype=float)
+    valid = s.dropna()
+    if valid.empty:
+        return out
+    lo, hi = valid.min(), valid.max()
+    if lo == hi:
+        out.loc[valid.index] = 0.5
+        return out
+    out.loc[valid.index] = ((valid - lo) / (hi - lo)).clip(0, 1)
+    return out
+
+def compute_scores(items, gdata, adata, sdata, rate_db, strict_bvbrc=False, normalization_mode="absolute"):
     print("="*70); print("STEP 4: Computing composite score"); print("="*70)
     rows = []
     for it in items:
@@ -166,9 +207,15 @@ def compute_scores(items, gdata, adata, sdata, rate_db, strict_bvbrc=False):
     df = pd.DataFrame(rows)
     if df.empty: return df
 
-    rate_score = _normalize_rate_absolute(df["rate_per_site_per_year"])
-    amr_score = _normalize_amr_absolute(df["amr_genes"])
-    resistance_score = pd.to_numeric(df["resistance_fraction"], errors="coerce").fillna(0.5).clip(0, 1)
+    if normalization_mode == "batch":
+        rate_score = _normalize_rate_batch(df["rate_per_site_per_year"])
+        amr_score = _normalize_amr_batch(df["amr_genes"])
+        resistance_score = _normalize_resistance_batch(df["resistance_fraction"])
+    else:
+        rate_score = _normalize_rate_absolute(df["rate_per_site_per_year"])
+        amr_score = _normalize_amr_absolute(df["amr_genes"])
+        resistance_score = pd.to_numeric(df["resistance_fraction"], errors="coerce").fillna(0.5).clip(0, 1)
+
     df["composite_score"] = (W_RATE * rate_score +
                              W_AMR * amr_score +
                              W_RES * resistance_score)
@@ -181,6 +228,12 @@ def main():
     p.add_argument("--output", default="evolutionary_rates_quantified.csv")
     p.add_argument("--strict-bvbrc", action="store_true",
                    help="Only include genomes with BV-BRC metadata/feature support")
+    p.add_argument(
+        "--normalization-mode",
+        choices=["absolute", "batch"],
+        default="absolute",
+        help="Composite score normalization mode: absolute (fixed bounds) or batch (dataset-relative)"
+    )
     args = p.parse_args()
     
     if not args.tsv:
@@ -204,7 +257,15 @@ def main():
     # Initialize the dynamic database orchestrator
     rate_db = DynamicRateDatabase()
     
-    df = compute_scores(items, gdata, adata, sdata, rate_db, strict_bvbrc=args.strict_bvbrc)
+    df = compute_scores(
+        items,
+        gdata,
+        adata,
+        sdata,
+        rate_db,
+        strict_bvbrc=args.strict_bvbrc,
+        normalization_mode=args.normalization_mode
+    )
     save_output(df, items, args.output)
     
     print("\nProcessing Pipeline Complete.\n")

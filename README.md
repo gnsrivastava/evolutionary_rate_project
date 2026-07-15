@@ -32,3 +32,5 @@ Use `--strict-bvbrc` to keep only records that have BV-BRC metadata support.
 - `rate_per_site_per_year` is log-scaled using fixed bounds (`1e-9` to `1e-4`).
 - `amr_genes` is scaled using a fixed cap (`20` genes).
 - `resistance_fraction` is clipped to `[0, 1]` (missing values use `0.5`).
+- Use `--normalization-mode absolute` (default) for fixed absolute scaling.
+- Use `--normalization-mode batch` to compute dataset-relative (batch-normalized) component scores before `composite_score` aggregation.
