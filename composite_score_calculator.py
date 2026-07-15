@@ -137,7 +137,7 @@ valid = s[(s.notna()) & (s >= 0)]
     return out
 
 def _normalize_resistance_batch(values):
-    s = pd.to_numeric(values, errors="coerce")
+s = pd.to_numeric(values, errors="coerce").clip(0, 1)
     out = pd.Series(0.5, index=s.index, dtype=float)
     valid = s.dropna()
     if valid.empty:
