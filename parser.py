@@ -8,6 +8,10 @@ _COL_ALIASES = {
     "assembly": ["assembly_accession","assembly","accession"],
     "taxon_id": ["ncbi_taxon_id","taxon_id","tax_id"],
     "genome_id":["genome_id","bvbrc_id","patric_id"],
+    "mapping_level": ["mapping_level"],
+    "mapping_description": ["mapping_description"],
+    "strain": ["acdb_strain_designation","ncbi_strain","strain","isolate","ncbi_isolate"],
+    "selection_method": ["selection_method"],
 }
 
 def _find_col(cols, key):
@@ -32,6 +36,11 @@ def parse_tsv(path):
     c_sp = _find_col(df.columns,"species")
     c_asm = _find_col(df.columns,"assembly")
     c_gid = _find_col(df.columns,"genome_id")
+    c_tax = _find_col(df.columns,"taxon_id")
+    c_map_level = _find_col(df.columns,"mapping_level")
+    c_map_desc = _find_col(df.columns,"mapping_description")
+    c_strain = _find_col(df.columns,"strain")
+    c_select = _find_col(df.columns,"selection_method")
     
     if not c_org and not c_sp and not c_gid:
         c_org = df.columns[0]
@@ -42,12 +51,21 @@ def parse_tsv(path):
         sp = (row.get(c_sp,"") if c_sp else "").strip()
         asm = (row.get(c_asm,"") if c_asm else "").strip()
         gid = (row.get(c_gid,"") if c_gid else "").strip()
+        tax = (row.get(c_tax,"") if c_tax else "").strip()
+        mapping_level = (row.get(c_map_level,"") if c_map_level else "").strip()
+        mapping_description = (row.get(c_map_desc,"") if c_map_desc else "").strip()
+        strain = (row.get(c_strain,"") if c_strain else "").strip()
+        selection_method = (row.get(c_select,"") if c_select else "").strip()
         
         best = sp or org
         genus, species = parse_organism(best)
         items.append({
             "input_label": org or sp, "species_name": best,
             "genus": genus, "species": species, "assembly_accession": asm,
-            "qualifiers": [], "genome_id": gid, "taxon_id": ""
+            "qualifiers": [], "genome_id": gid, "taxon_id": tax,
+            "mapping_level": mapping_level,
+            "mapping_description": mapping_description,
+            "strain": strain,
+            "selection_method": selection_method,
         })
     return items
