@@ -25,3 +25,10 @@ The pipeline accepts TSV/CSV manifests with flexible column aliases. For mixed-s
 ## Strict mode
 
 Use `--strict-bvbrc` to keep only records that have BV-BRC metadata support.
+
+## Composite score behavior
+
+- `composite_score` is computed with fixed absolute scaling and is independent of how many species are in the same run.
+- `rate_per_site_per_year` is log-scaled using fixed bounds (`1e-9` to `1e-4`).
+- `amr_genes` is scaled using a fixed cap (`20` genes).
+- `resistance_fraction` is clipped to `[0, 1]` (missing values use `0.5`).

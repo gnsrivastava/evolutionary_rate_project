@@ -13,6 +13,9 @@ from utils import save_output
 
 W_RATE = 0.50; W_AMR = 0.25; W_RES = 0.25
 BV_BRC_BASE = "https://www.bv-brc.org/api"
+RATE_SCORE_MIN = 1e-9
+RATE_SCORE_MAX = 1e-4
+AMR_GENES_SCORE_MAX = 20.0
 
 def _query_first_genome_id(rql_filter):
     try:
@@ -84,15 +87,25 @@ def resolve_genome_ids(items):
             it["resolution_source"] = "unresolved"
             print(f"  ⚠ Unresolved in BV-BRC: {it.get('input_label') or it.get('species_name') or 'unknown'}")
 
-def _normalize_series(values):
+def _normalize_rate_absolute(values):
+    s = pd.to_numeric(values, errors="coerce")
+    out = pd.Series(0.5, index=s.index, dtype=float)
+    valid = s[(s.notna()) & (s > 0)]
+    if valid.empty:
+        return out
+    log_lo = np.log10(RATE_SCORE_MIN)
+    log_hi = np.log10(RATE_SCORE_MAX)
+    clipped = valid.clip(lower=RATE_SCORE_MIN, upper=RATE_SCORE_MAX)
+    out.loc[valid.index] = ((np.log10(clipped) - log_lo) / (log_hi - log_lo)).clip(0, 1)
+    return out
+
+def _normalize_amr_absolute(values):
     s = pd.to_numeric(values, errors="coerce")
     out = pd.Series(0.5, index=s.index, dtype=float)
     valid = s.dropna()
     if valid.empty:
         return out
-    lo, hi = valid.min(), valid.max()
-    if hi != lo:
-        out.loc[valid.index] = (valid - lo) / (hi - lo)
+    out.loc[valid.index] = (valid / AMR_GENES_SCORE_MAX).clip(0, 1)
     return out
 
 def compute_scores(items, gdata, adata, sdata, rate_db, strict_bvbrc=False):
@@ -153,15 +166,12 @@ def compute_scores(items, gdata, adata, sdata, rate_db, strict_bvbrc=False):
     df = pd.DataFrame(rows)
     if df.empty: return df
 
-    if len(df) >= 2:
-        rate_score = _normalize_series(df["rate_per_site_per_year"])
-        amr_score = _normalize_series(df["amr_genes"])
-        resistance_score = pd.to_numeric(df["resistance_fraction"], errors="coerce").fillna(0.5).clip(0, 1)
-        df["composite_score"] = (W_RATE * rate_score +
-                                 W_AMR * amr_score +
-                                 W_RES * resistance_score)
-    else:
-        df["composite_score"] = 0.5
+    rate_score = _normalize_rate_absolute(df["rate_per_site_per_year"])
+    amr_score = _normalize_amr_absolute(df["amr_genes"])
+    resistance_score = pd.to_numeric(df["resistance_fraction"], errors="coerce").fillna(0.5).clip(0, 1)
+    df["composite_score"] = (W_RATE * rate_score +
+                             W_AMR * amr_score +
+                             W_RES * resistance_score)
         
     return df
 
