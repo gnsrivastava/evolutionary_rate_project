@@ -126,7 +126,7 @@ def _normalize_amr_absolute(values):
 def _normalize_amr_batch(values):
     s = pd.to_numeric(values, errors="coerce")
     out = pd.Series(0.5, index=s.index, dtype=float)
-    valid = s.dropna()
+valid = s[(s.notna()) & (s >= 0)]
     if valid.empty:
         return out
     lo, hi = valid.min(), valid.max()
