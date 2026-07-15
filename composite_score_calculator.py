@@ -207,14 +207,16 @@ def compute_scores(items, gdata, adata, sdata, rate_db, strict_bvbrc=False, norm
     df = pd.DataFrame(rows)
     if df.empty: return df
 
-    if normalization_mode == "batch":
-        rate_score = _normalize_rate_batch(df["rate_per_site_per_year"])
-        amr_score = _normalize_amr_batch(df["amr_genes"])
-        resistance_score = _normalize_resistance_batch(df["resistance_fraction"])
-    else:
-        rate_score = _normalize_rate_absolute(df["rate_per_site_per_year"])
-        amr_score = _normalize_amr_absolute(df["amr_genes"])
-        resistance_score = pd.to_numeric(df["resistance_fraction"], errors="coerce").fillna(0.5).clip(0, 1)
+if normalization_mode == "batch":
+    rate_score = _normalize_rate_batch(df["rate_per_site_per_year"])
+    amr_score = _normalize_amr_batch(df["amr_genes"])
+    resistance_score = _normalize_resistance_batch(df["resistance_fraction"])
+elif normalization_mode == "absolute":
+    rate_score = _normalize_rate_absolute(df["rate_per_site_per_year"])
+    amr_score = _normalize_amr_absolute(df["amr_genes"])
+    resistance_score = pd.to_numeric(df["resistance_fraction"], errors="coerce").fillna(0.5).clip(0, 1)
+else:
+    raise ValueError(f"Unsupported normalization_mode: {normalization_mode!r}. Expected 'absolute' or 'batch'.")
 
     df["composite_score"] = (W_RATE * rate_score +
                              W_AMR * amr_score +
