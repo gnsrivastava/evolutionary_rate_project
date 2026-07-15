@@ -55,10 +55,12 @@ def resolve_genome_ids(items):
                 it["resolution_source"] = "assembly_accession"
 
         if not gid and taxon_id:
-            gid = _query_first_genome_id(f"eq(taxon_id,{taxon_id})")
-            if gid:
-                it["resolution_source"] = "ncbi_taxon_id"
-                it["proxy_used"] = True
+            tid = taxon_id.strip()
+            if tid.isdigit():
+                gid = _query_first_genome_id(f"eq(taxon_id,{tid})")
+                if gid:
+                    it["resolution_source"] = "ncbi_taxon_id"
+                    it["proxy_used"] = True
 
         if not gid and species_name:
             q = requests.utils.quote(species_name, safe="._-")
