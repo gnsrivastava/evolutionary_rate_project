@@ -126,7 +126,7 @@ def _normalize_amr_absolute(values):
 def _normalize_amr_batch(values):
     s = pd.to_numeric(values, errors="coerce")
     out = pd.Series(0.5, index=s.index, dtype=float)
-valid = s[(s.notna()) & (s >= 0)]
+    valid = s[(s.notna()) & (s >= 0)]
     if valid.empty:
         return out
     lo, hi = valid.min(), valid.max()
@@ -137,7 +137,7 @@ valid = s[(s.notna()) & (s >= 0)]
     return out
 
 def _normalize_resistance_batch(values):
-s = pd.to_numeric(values, errors="coerce").clip(0, 1)
+    s = pd.to_numeric(values, errors="coerce").clip(0, 1)
     out = pd.Series(0.5, index=s.index, dtype=float)
     valid = s.dropna()
     if valid.empty:
@@ -205,24 +205,34 @@ def compute_scores(items, gdata, adata, sdata, rate_db, strict_bvbrc=False, norm
         })
         
     df = pd.DataFrame(rows)
-    if df.empty: return df
+    if df.empty:
+        return df
 
-if normalization_mode == "batch":
-    rate_score = _normalize_rate_batch(df["rate_per_site_per_year"])
-    amr_score = _normalize_amr_batch(df["amr_genes"])
-    resistance_score = _normalize_resistance_batch(df["resistance_fraction"])
-elif normalization_mode == "absolute":
-    rate_score = _normalize_rate_absolute(df["rate_per_site_per_year"])
-    amr_score = _normalize_amr_absolute(df["amr_genes"])
-    resistance_score = pd.to_numeric(df["resistance_fraction"], errors="coerce").fillna(0.5).clip(0, 1)
-else:
-    raise ValueError(f"Unsupported normalization_mode: {normalization_mode!r}. Expected 'absolute' or 'batch'.")
+    if normalization_mode == "batch":
+        rate_score = _normalize_rate_batch(df["rate_per_site_per_year"])
+        amr_score = _normalize_amr_batch(df["amr_genes"])
+        resistance_score = _normalize_resistance_batch(df["resistance_fraction"])
+    elif normalization_mode == "absolute":
+        rate_score = _normalize_rate_absolute(df["rate_per_site_per_year"])
+        amr_score = _normalize_amr_absolute(df["amr_genes"])
+        resistance_score = pd.to_numeric(
+            df["resistance_fraction"], errors="coerce"
+        ).fillna(0.5).clip(0, 1)
+    else:
+        raise ValueError(
+            f"Unsupported normalization_mode: {normalization_mode!r}. "
+            "Expected 'absolute' or 'batch'."
+        )
 
-    df["composite_score"] = (W_RATE * rate_score +
-                             W_AMR * amr_score +
-                             W_RES * resistance_score)
-        
+    df["composite_score"] = (
+        W_RATE * rate_score
+        + W_AMR * amr_score
+        + W_RES * resistance_score
+    )
+
     return df
+
+
 
 def main():
     p = argparse.ArgumentParser()
