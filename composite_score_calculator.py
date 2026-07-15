@@ -15,7 +15,7 @@ W_RATE = 0.50; W_AMR = 0.25; W_RES = 0.25
 BV_BRC_BASE = "https://www.bv-brc.org/api"
 RATE_SCORE_MIN = 1e-9
 RATE_SCORE_MAX = 1e-4
-AMR_GENES_SCORE_MAX = 20.0
+AMR_GENES_SCORE_MAX = 100.0
 
 def _query_first_genome_id(rql_filter):
     try:
